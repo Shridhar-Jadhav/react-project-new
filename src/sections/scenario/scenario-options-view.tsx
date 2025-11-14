@@ -56,21 +56,17 @@ export function ScenarioOptionsView() {
   const router = useRouter();
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
 
-  const handleScenarioClick = (scenarioId: string, subScenarios: any[]) => {
-    if (subScenarios.length === 0) {
-      router.push(`/evaluation?type=${scenarioId}`);
-    }
-  };
-
-  const handleSubScenarioClick = (path: string) => {
-    router.push(path);
+  const handleScenarioClick = (scenario: any) => {
+    // open first subScenario path
+    const first = scenario.subScenarios[0];
+    router.push(first.path);
   };
 
   return (
     <Box
       sx={{
         minHeight: '100vh',
-        background: '#667eea',
+        background: 'transparent',
         width: '100%',
         maxWidth: '100% !important',
         overflowX: 'hidden',
@@ -103,7 +99,7 @@ export function ScenarioOptionsView() {
             sx={{
               fontWeight: 700,
               mb: 2,
-              color: 'white',
+              color: '#092862',
               textShadow: '0 2px 10px rgba(0,0,0,0.2)',
               fontSize: { xs: '2rem', md: '3rem' },
             }}
@@ -113,21 +109,22 @@ export function ScenarioOptionsView() {
           <Typography
             variant="h6"
             sx={{
-              color: 'rgba(255,255,255,0.95)',
+              color: '#000',
               fontSize: { xs: '1rem', md: '1.25rem' },
-              fontWeight: 300,
+              fontWeight: 400,
             }}
           >
-            Choose the area you want to evaluate
+            Instractions for the users will go here
           </Typography>
         </Box>
 
-        <Grid container spacing={3} sx={{ px: { xs: 2, sm: 3, md: 4 } }}>
+        <Grid container spacing={3} sx={{ px: { xs: 2, sm: 3, md: 4, lg: 3 } }}>
           {scenarios.map((scenario, index) => (
-            <Grid size={{ xs: 12, sm: 6, md: 3 }} key={scenario.id}>
+            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={scenario.id}>
               <Card
                 onMouseEnter={() => setHoveredCard(scenario.id)}
                 onMouseLeave={() => setHoveredCard(null)}
+                onClick={() => handleScenarioClick(scenario)}
                 sx={{
                   height: '100%',
                   cursor: 'pointer',
@@ -148,9 +145,6 @@ export function ScenarioOptionsView() {
                     background: 'rgba(255, 255, 255, 1)',
                   },
                 }}
-                onClick={() =>
-                  handleScenarioClick(scenario.id, scenario.subScenarios)
-                }
               >
                 <CardContent sx={{ textAlign: 'center', p: 4 }}>
                   <Box
@@ -189,47 +183,6 @@ export function ScenarioOptionsView() {
                   >
                     {scenario.description}
                   </Typography>
-
-                  {scenario.subScenarios.length > 0 && (
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        gap: 1.5,
-                        justifyContent: 'center',
-                        flexWrap: 'wrap',
-                      }}
-                    >
-                      {scenario.subScenarios.map((sub) => (
-                        <Box
-                          key={sub.id}
-                          component="span"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSubScenarioClick(sub.path);
-                          }}
-                          sx={{
-                            px: 2.5,
-                            py: 1,
-                            background:
-                              'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                            color: 'white',
-                            borderRadius: 2,
-                            fontSize: '0.875rem',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            transition: 'all 0.3s ease',
-                            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
-                            '&:hover': {
-                              transform: 'translateY(-2px)',
-                              boxShadow: '0 6px 20px rgba(102, 126, 234, 0.6)',
-                            },
-                          }}
-                        >
-                          Scenario {sub.id}
-                        </Box>
-                      ))}
-                    </Box>
-                  )}
                 </CardContent>
               </Card>
             </Grid>
