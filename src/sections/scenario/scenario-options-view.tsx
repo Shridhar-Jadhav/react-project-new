@@ -36,18 +36,18 @@ const scenarios = [
     title: 'Policy',
     description: 'Analyze policy innovation and governance impact',
     subScenarios: [
-      { id: 1, path: '/policy-scenario-1' },
-      { id: 2, path: '/policy-scenario-2' },
+      { id: 1, path: '/evaluation' },
+      { id: 2, path: '/evaluation' },
     ],
   },
   {
     id: 'practice',
-    icon: '🔄',
+    icon: '📊',
     title: 'Practice',
     description: 'Review process innovation and best practices',
     subScenarios: [
-      { id: 1, path: '/practice-scenario-1' },
-      { id: 2, path: '/practice-scenario-2' },
+      { id: 1, path: '/evaluation' },
+      { id: 2, path: '/evaluation' },
     ],
   },
 ];
@@ -114,7 +114,7 @@ export function ScenarioOptionsView() {
               fontWeight: 400,
             }}
           >
-            Instractions for the users will go here
+            Instructions for the users will go here
           </Typography>
         </Box>
 
