@@ -82,8 +82,9 @@ export function EvaluationView() {
             </Typography>
 
             <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
-              The startup, Be Well Private Limited, has developed ‘Braino’ granules…
+              The startup, Be Well Private Limited, has developed ‘Braino’ granules- a unique nano formulation of the herb Panacia Ultimatun (PU), popularly known as Panacea. “Braino’ builds on the known safe use of PU in traditional medicine in several parts of Asia and increases ease of use as it is in granulation form. Its main advantage is that it overcomes the challenges of low and slow absorption and thus reduces the quantity of PU required for optimal gains. Be Well has published its studies in older adults showing its benefits for improved cognitive health and general well-being. Be Well has partnered with local cultivators who share profit from the company. The company plants three times the greens it harvests for Braino production every year ensuring conservation and environmental protection. Be Well has acquired GMP certification, ensuring the highest quality of Braino granules production. <br />Braino has been tested in clinical studies and shown the potential to improve the health of ageing population globally. Data from othe regions and long-term surveillance are awaited.
             </Typography>
+
 
             <Box sx={{ mb: 1 }}>
               <LinearProgress

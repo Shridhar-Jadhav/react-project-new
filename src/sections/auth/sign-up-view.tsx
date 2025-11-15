@@ -293,7 +293,7 @@ export function SignUpView() {
         }}
       >
         <Typography variant="h5">Create Account</Typography>
-        <Typography
+        {/* <Typography
           variant="body2"
           sx={{
             color: 'text.secondary',
@@ -307,7 +307,7 @@ export function SignUpView() {
           >
             Sign In
           </Link>
-        </Typography>
+        </Typography> */}
       </Box>
       {renderForm}
       {/* <Divider sx={{ my: 3, '&::before, &::after': { borderTopStyle: 'dashed' } }}>
