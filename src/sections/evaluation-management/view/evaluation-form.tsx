@@ -1,88 +1,185 @@
-
 import { useState, useEffect } from 'react';
-import { Box, Button, Card, TextField, Typography, MenuItem } from '@mui/material';
+import {
+  Box,
+  Button,
+  Card,
+  TextField,
+  Typography,
+  MenuItem,
+  LinearProgress,
+} from '@mui/material';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { useNavigate, useParams } from 'react-router-dom';
 
-type Eval = {
+// --------------------
+// TYPES
+// --------------------
+type Scenario = {
   id: number;
-  option: string;
   title: string;
   description: string;
+  image: string;
+  status: number;
 };
 
-const OPTIONS = ['Product', 'Technology', 'Policy', 'Practice'];
-const STORAGE_KEY = 'evaluations_v1';
+type Evaluation = {
+  id: number;
+  scenario_id: number;
+  title: string;
+  description: string;
+  status: number;
+};
 
-function load(): Eval[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
-}
+type Payload = {
+  scenario_id: number;
+  title: string;
+  description: string;
+  status: number;
+};
 
-function save(items: Eval[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-}
+// --------------------
+const API_EVAL = 'http://localhost:5000/api/tbl_evaluation';
+const API_SCENARIO = 'http://localhost:5000/api/tbl_scenario';
+// --------------------
 
 export function EvaluationForm() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [option, setOption] = useState('');
+  const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [scenarioId, setScenarioId] = useState<number | ''>('');
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
+  const [loading, setLoading] = useState(false);
 
+  const isEdit = Boolean(id);
+
+  // -----------------------------
+  // LOAD SCENARIOS FIRST
+  // -----------------------------
   useEffect(() => {
-    if (id) {
-      const items = load();
-      const found = items.find(it => String(it.id) === String(id));
-      if (found) {
-        setOption(found.option);
-        setTitle(found.title);
-        setDesc(found.description);
+    const loadScenarios = async () => {
+      try {
+        const res = await fetch(API_SCENARIO);
+        const data = await res.json();
+        setScenarios(data);
+      } catch (err) {
+        console.error(err);
+        alert('Failed to load scenario list');
       }
-    }
-  }, [id]);
+    };
+    loadScenarios();
+  }, []);
 
-  const onSubmit = (e: React.FormEvent) => {
+  // -----------------------------
+  // LOAD EVALUATION IF EDIT MODE
+  // -----------------------------
+  useEffect(() => {
+    if (!id) return;
+
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(API_EVAL);
+        const data: Evaluation[] = await res.json();
+        const found = data.find((e) => String(e.id) === String(id));
+
+        if (found) {
+          setScenarioId(found.scenario_id);
+          setTitle(found.title);
+          setDesc(found.description);
+        } else {
+          alert('Evaluation not found');
+          navigate('/evaluation-management');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Failed to load evaluation');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [id, navigate]);
+
+  // -----------------------------
+  // SUBMIT
+  // -----------------------------
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!option || !title || !desc) {
+
+    if (!scenarioId || !title.trim() || !desc.trim()) {
       alert('All fields are required');
       return;
     }
-    const items = load();
-    if (id) {
-      const next = items.map(it => (String(it.id) === String(id) ? { ...it, option, title, description: desc } : it));
-      save(next);
-    } else {
-      const nextId = items.length ? Math.max(...items.map(i=>i.id)) + 1 : 1;
-      items.push({ id: nextId, option, title, description: desc});
-      save(items);
+
+    const payload: Payload = {
+      scenario_id: Number(scenarioId),
+      title: title.trim(),
+      description: desc.trim(),
+      status: 1,
+    };
+
+    try {
+      setLoading(true);
+
+      let res;
+
+      if (isEdit) {
+        res = await fetch(`${API_EVAL}/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        res = await fetch(API_EVAL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      }
+
+      if (!res.ok) throw new Error('Request failed');
+
+      navigate('/evaluation-management');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save evaluation');
+    } finally {
+      setLoading(false);
     }
-    navigate('/evaluation-management');
   };
 
+  // -----------------------------
   return (
     <DashboardContent>
       <Card sx={{ p: 3 }}>
         <Typography variant="h5" sx={{ mb: 3 }}>
-          {id ? 'Edit Evaluation' : 'Add Evaluation'}
+          {isEdit ? 'Edit Evaluation' : 'Add Evaluation'}
         </Typography>
 
-        <form onSubmit={onSubmit}>
+        {loading && (
+          <Box sx={{ mb: 2 }}>
+            <LinearProgress />
+          </Box>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          {/* ---------------- SCENARIO DROPDOWN ---------------- */}
           <TextField
             select
             fullWidth
             label="Option"
             sx={{ mb: 2 }}
-            value={option}
-            onChange={(e) => setOption(e.target.value)}
+            value={scenarioId === '' ? '' : String(scenarioId)}
+            onChange={(e) => setScenarioId(Number(e.target.value))}
           >
-            {OPTIONS.map(opt => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
+            {scenarios.map((sc) => (
+              <MenuItem key={sc.id} value={sc.id}>
+                {sc.title}
+              </MenuItem>
+            ))}
           </TextField>
 
           <TextField
@@ -104,8 +201,12 @@ export function EvaluationForm() {
           />
 
           <Box>
-            <Button variant="contained" type="submit">{id ? 'Update' : 'Save'}</Button>
-            <Button sx={{ ml: 2 }} onClick={() => navigate('/evaluation-management')}>Cancel</Button>
+            <Button variant="contained" type="submit">
+              {isEdit ? 'Update' : 'Save'}
+            </Button>
+            <Button sx={{ ml: 2 }} onClick={() => navigate('/evaluation-management')}>
+              Cancel
+            </Button>
           </Box>
         </form>
       </Card>

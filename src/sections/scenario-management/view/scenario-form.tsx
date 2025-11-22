@@ -1,31 +1,7 @@
-
 import { useState, useEffect } from 'react';
 import { Box, Button, Card, TextField, Typography } from '@mui/material';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { useNavigate, useParams } from 'react-router-dom';
-
-type Scenario = {
-  id: number;
-  title: string;
-  description: string;
-  image?: string;
-};
-
-const STORAGE_KEY = 'scenarios_v1';
-
-function load(): Scenario[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
-}
-
-function save(items: Scenario[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-}
 
 export function ScenarioForm() {
   const { id } = useParams();
@@ -35,40 +11,59 @@ export function ScenarioForm() {
   const [desc, setDesc] = useState('');
   const [image, setImage] = useState<File | null>(null);
 
+  // ------------------- FETCH SINGLE SCENARIO -------------------
   useEffect(() => {
     if (id) {
-      const items = load();
-      const found = items.find(it => String(it.id) === String(id));
-      if (found) {
-        setTitle(found.title);
-        setDesc(found.description);
-      }
+      fetch(`http://localhost:5000/api/tbl_scenario/${id}`)
+        .then((res) => res.json())
+        .then((data) => {
+          setTitle(data.title);
+          setDesc(data.description);
+        })
+        .catch((err) => console.error(err));
     }
   }, [id]);
 
-  const onSubmit = (e: React.FormEvent) => {
+  // ------------------- SUBMIT FORM -------------------
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!title || !desc) {
-      alert('Title and Description are required');
+      alert("Title & Description are required");
       return;
     }
-    const items = load();
-    if (id) {
-      const next = items.map(it => (String(it.id) === String(id) ? { ...it, title, description: desc } : it));
-      save(next);
-    } else {
-      const nextId = items.length ? Math.max(...items.map(i=>i.id)) + 1 : 1;
-      items.push({ id: nextId, title, description: desc, image: image ? image.name : undefined});
-      save(items);
+
+    const formData = new FormData();
+    formData.append("title", title);
+    formData.append("description", desc);
+    if (image) formData.append("image", image);
+
+    try {
+      if (id) {
+        // UPDATE
+        await fetch(`http://localhost:5000/api/tbl_scenario/${id}`, {
+          method: "PUT",
+          body: formData,
+        });
+      } else {
+        // CREATE
+        await fetch("http://localhost:5000/api/tbl_scenario", {
+          method: "POST",
+          body: formData,
+        });
+      }
+
+      navigate("/scenario-management");
+    } catch (error) {
+      console.error(error);
     }
-    navigate('/scenario-management');
   };
 
   return (
     <DashboardContent>
       <Card sx={{ p: 3 }}>
         <Typography variant="h5" sx={{ mb: 3 }}>
-          {id ? 'Edit Scenario' : 'Add Scenario'}
+          {id ? "Edit Scenario" : "Add Scenario"}
         </Typography>
 
         <form onSubmit={onSubmit}>
@@ -98,8 +93,12 @@ export function ScenarioForm() {
           />
 
           <Box>
-            <Button variant="contained" type="submit">{id ? 'Update' : 'Save'}</Button>
-            <Button sx={{ ml: 2 }} onClick={() => navigate('/scenario-management')}>Cancel</Button>
+            <Button variant="contained" type="submit">
+              {id ? "Update" : "Save"}
+            </Button>
+            <Button sx={{ ml: 2 }} onClick={() => navigate("/scenario-management")}>
+              Cancel
+            </Button>
           </Box>
         </form>
       </Card>

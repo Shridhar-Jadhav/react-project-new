@@ -51,6 +51,7 @@ export function SignUpView() {
   const [agreeToPolicy, setAgreeToPolicy] = useState(false);
   const [errors, setErrors] = useState({ name: '', number: '', email: '', policy: '' });
   const [successMessage, setSuccessMessage] = useState('');
+  const [apiError, setApiError] = useState('');
 
   const validateName = (value: string): string => {
     if (!value) return 'Name is required';
@@ -59,22 +60,22 @@ export function SignUpView() {
   };
 
   const validateNumber = (value: string, code: string): string => {
-    const selectedCountry = countryCodes.find(c => c.code === code);
+    const selectedCountry = countryCodes.find((c) => c.code === code);
     if (!selectedCountry) return 'Invalid country code';
-    
+
     if (!value) return 'Phone number is required';
-    
+
     const phoneRegex = /^[0-9]+$/;
     if (!phoneRegex.test(value)) return 'Phone number must contain only digits';
-    
+
     if (value.length < selectedCountry.minLength) {
       return `Phone number must be at least ${selectedCountry.minLength} digits for ${selectedCountry.country}`;
     }
-    
+
     if (value.length > selectedCountry.maxLength) {
       return `Phone number must be at most ${selectedCountry.maxLength} digits for ${selectedCountry.country}`;
     }
-    
+
     return '';
   };
 
@@ -95,6 +96,7 @@ export function SignUpView() {
     setName(value);
     setErrors((prev) => ({ ...prev, name: validateName(value) }));
     setSuccessMessage('');
+    setApiError('');
   };
 
   const handleCountryCodeChange = (e: any) => {
@@ -102,16 +104,18 @@ export function SignUpView() {
     setCountryCode(code);
     setErrors((prev) => ({ ...prev, number: validateNumber(number, code) }));
     setSuccessMessage('');
+    setApiError('');
   };
 
   const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, ''); // Only allow digits
-    const selectedCountry = countryCodes.find(c => c.code === countryCode);
-    
+    const value = e.target.value.replace(/\D/g, '');
+    const selectedCountry = countryCodes.find((c) => c.code === countryCode);
+
     if (selectedCountry && value.length <= selectedCountry.maxLength) {
       setNumber(value);
       setErrors((prev) => ({ ...prev, number: validateNumber(value, countryCode) }));
       setSuccessMessage('');
+      setApiError('');
     }
   };
 
@@ -120,6 +124,7 @@ export function SignUpView() {
     setEmail(value);
     setErrors((prev) => ({ ...prev, email: validateEmail(value) }));
     setSuccessMessage('');
+    setApiError('');
   };
 
   const handlePolicyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -127,10 +132,11 @@ export function SignUpView() {
     setAgreeToPolicy(checked);
     setErrors((prev) => ({ ...prev, policy: validatePolicy(checked) }));
     setSuccessMessage('');
+    setApiError('');
   };
 
   const handleSignUp = useCallback(
-    (e: React.FormEvent<HTMLFormElement>) => {
+    async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
 
       const nameError = validateName(name);
@@ -145,20 +151,51 @@ export function SignUpView() {
         policy: policyError,
       });
 
-      if (!nameError && !numberError && !emailError && !policyError) {
+      if (nameError || numberError || emailError || policyError) return;
+
+      try {
+        const payload = {
+          full_name: name,
+          phone: countryCode + number,
+          email,
+          status: 1,
+        };
+
+        const response = await fetch('http://localhost:5000/api/tbl_user_sign_up', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          setApiError(data?.message || 'Something went wrong');
+          return;
+        }
+
+        if (!data?.id) {
+          setApiError('User created but id not returned from server.');
+          return;
+        }
+
         setSuccessMessage('Account created successfully!');
-        // Here you can add API call to save user data
-        // Full phone number would be: countryCode + number
-        console.log('Full phone:', countryCode + number);
+        setApiError('');
+
         setTimeout(() => {
+          localStorage.setItem('user', 'true');
+          localStorage.setItem('current_user_id', String(data.id)); // ⭐ important
           router.push('/scenario-options');
         }, 1500);
+      } catch (error) {
+        console.error(error);
+        setApiError('Failed to connect to server');
       }
     },
     [name, number, email, agreeToPolicy, countryCode, router]
   );
 
-  const selectedCountry = countryCodes.find(c => c.code === countryCode);
+  const selectedCountry = countryCodes.find((c) => c.code === countryCode);
 
   const renderForm = (
     <Box
@@ -173,6 +210,12 @@ export function SignUpView() {
       {successMessage && (
         <Alert severity="success" sx={{ width: '100%', mb: 3 }}>
           {successMessage}
+        </Alert>
+      )}
+
+      {apiError && (
+        <Alert severity="error" sx={{ width: '100%', mb: 3 }}>
+          {apiError}
         </Alert>
       )}
 
@@ -194,12 +237,7 @@ export function SignUpView() {
       <Box sx={{ display: 'flex', gap: 1, width: '100%', mb: 3 }}>
         <FormControl sx={{ minWidth: 140 }}>
           <InputLabel shrink>Country</InputLabel>
-          <Select
-            value={countryCode}
-            onChange={handleCountryCodeChange}
-            label="Country"
-            notched
-          >
+          <Select value={countryCode} onChange={handleCountryCodeChange} label="Country" notched>
             {countryCodes.map((country) => (
               <MenuItem key={country.code} value={country.code}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -244,26 +282,22 @@ export function SignUpView() {
       <Box sx={{ width: '100%', mb: 3 }}>
         <FormControlLabel
           control={
-            <Checkbox
-              checked={agreeToPolicy}
-              onChange={handlePolicyChange}
-              color="primary"
-            />
+            <Checkbox checked={agreeToPolicy} onChange={handlePolicyChange} color="primary" />
           }
           label={
             <Typography variant="body2">
               I agree to the{' '}
               <Link
-                href="/company-policy"
+                href="/terms-and-policy"
                 target="_blank"
                 rel="noopener noreferrer"
                 sx={{ cursor: 'pointer' }}
                 onClick={(e) => {
                   e.preventDefault();
-                  window.open('/company-policy', '_blank');
+                  window.open('/terms-and-policy', '_blank');
                 }}
               >
-                Terms & Policy
+                Terms &amp; Policy
               </Link>
             </Typography>
           }
@@ -292,49 +326,9 @@ export function SignUpView() {
           mb: 5,
         }}
       >
-        <Typography variant="h5">Create Account</Typography>
-        {/* <Typography
-          variant="body2"
-          sx={{
-            color: 'text.secondary',
-          }}
-        >
-          Don&apos;t have an account?
-          <Link 
-            variant="subtitle2" 
-            sx={{ ml: 0.5, cursor: 'pointer' }}
-            onClick={() => router.push('/sign-in')}
-          >
-            Sign In
-          </Link>
-        </Typography> */}
+        <Typography variant="h5">Welcome</Typography>
       </Box>
       {renderForm}
-      {/* <Divider sx={{ my: 3, '&::before, &::after': { borderTopStyle: 'dashed' } }}>
-        <Typography
-          variant="overline"
-          sx={{ color: 'text.secondary', fontWeight: 'fontWeightMedium' }}
-        >
-          OR
-        </Typography>
-      </Divider> */}
-      {/* <Box
-        sx={{
-          gap: 1,
-          display: 'flex',
-          justifyContent: 'center',
-        }}
-      >
-        <IconButton color="inherit">
-          <Iconify width={22} icon="socials:google" />
-        </IconButton>
-        <IconButton color="inherit">
-          <Iconify width={22} icon="socials:github" />
-        </IconButton>
-        <IconButton color="inherit">
-          <Iconify width={22} icon="socials:twitter" />
-        </IconButton>
-      </Box> */}
     </>
   );
 }

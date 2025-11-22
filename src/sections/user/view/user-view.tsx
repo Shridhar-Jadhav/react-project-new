@@ -1,12 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Checkbox from '@mui/material/Checkbox';
 import IconButton from '@mui/material/IconButton';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
 import TableBody from '@mui/material/TableBody';
 import Typography from '@mui/material/Typography';
 import TableContainer from '@mui/material/TableContainer';
@@ -20,84 +18,76 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 
-import { _users } from 'src/_mock';
-
-// --------------------------------------------------
-// Define proper User type that supports phone/email
-// --------------------------------------------------
+// USER TYPE
 type User = {
-  id: string;
-  name: string;
-  company?: string;
-  isVerified?: boolean;
-  avatarUrl?: string;
-  status?: string;
-  role?: string;
-  phone?: string;
-  email?: string;
+  id: number;
+  full_name: string;
+  phone: string;
+  email: string;
+  status: number;
 };
 
-// --------------------------------------------------
-
 export function UserView() {
-  const [data, setData] = useState<User[]>(_users as User[]);
+  const [data, setData] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
 
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [menuId, setMenuId] = useState<string | null>(null);
+  // LOAD USERS FROM API
+  useEffect(() => {
+    fetch("http://localhost:5000/api/tbl_user_sign_up")
+      .then((res) => res.json())
+      .then((result) => {
 
-  const [search, setSearch] = useState('');
+        // SORT BY LATEST (highest id first)
+        const sorted = result.sort((a: User, b: User) => b.id - a.id);
 
-  // -------------------------------
-  // FILTERED SEARCH LOGIC
-  // -------------------------------
+        setData(sorted);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  // TOTAL USERS COUNT → STATUS
+  const statusCount = data.length;
+
+  // SEARCH FILTER
   const filtered = data.filter((u) => {
     const q = search.trim().toLowerCase();
     if (!q) return true;
 
     return (
-      (u.name || '').toLowerCase().includes(q) ||
+      u.full_name.toLowerCase().includes(q) ||
       (u.phone || '').toLowerCase().includes(q) ||
       (u.email || '').toLowerCase().includes(q)
     );
   });
 
-  // -------------------------------
-  // MENU HANDLERS
-  // -------------------------------
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, id: string) => {
-    setAnchorEl(event.currentTarget);
-    setMenuId(id);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-    setMenuId(null);
-  };
-
-  const handleDelete = (id: string) => {
-    if (!confirm('Delete user?')) return;
-    setData(data.filter((u) => u.id !== id));
-  };
-
-  const handleView = (id: string) => {
+  // VIEW PROFILE
+  const handleView = (id: number) => {
     window.location.href = `/user/info/${id}`;
   };
 
-  // --------------------------------------------------
-
   return (
     <DashboardContent>
-      {/* PAGE HEADER */}
       <Box sx={{ mb: 2 }}>
         <Typography variant="h4">Users</Typography>
         <Typography variant="body2" color="text.secondary">
-          List of registered users. Search or use the actions to manage users.
+          List of Sign Up users.
         </Typography>
       </Box>
 
       <Card>
+
+        {/* STATUS COUNT */}
+        {/* <Box sx={{ p: 2 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+            Status: {statusCount}
+          </Typography>
+        </Box> */}
+
         {/* SEARCH BAR */}
         <Box sx={{ p: 2 }}>
           <TextField
@@ -111,7 +101,6 @@ export function UserView() {
           />
         </Box>
 
-        {/* TABLE */}
         <Scrollbar>
           <TableContainer sx={{ overflow: 'unset' }}>
             <Table>
@@ -123,68 +112,46 @@ export function UserView() {
                   <TableCell>Full Name</TableCell>
                   <TableCell>Phone Number</TableCell>
                   <TableCell>Email Address</TableCell>
-                  <TableCell align="right">Actions</TableCell>
+                  <TableCell>Login Count</TableCell>
+                  <TableCell align="right">View Info</TableCell>
                 </TableRow>
               </TableHead>
 
               <TableBody>
+                {filtered.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center">
+                      No users found
+                    </TableCell>
+                  </TableRow>
+                )}
+
                 {filtered
                   .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((row: User) => (
+                  .map((row) => (
                     <TableRow key={row.id} hover>
                       <TableCell padding="checkbox">
                         <Checkbox checked={false} />
                       </TableCell>
 
-                      <TableCell>{row.name}</TableCell>
-                      <TableCell>{row.phone ?? '-'}</TableCell>
-                      <TableCell>{row.email ?? '-'}</TableCell>
+                      <TableCell>{row.full_name}</TableCell>
+                      <TableCell>{row.phone || '-'}</TableCell>
+                      <TableCell>{row.email || '-'}</TableCell>
+
+                      <TableCell>{row.status}</TableCell>
 
                       <TableCell align="right">
-                        <IconButton onClick={(e) => handleMenuOpen(e, row.id)}>
-                          <Iconify icon="eva:more-vertical-fill" />
+                        <IconButton onClick={() => handleView(row.id)}>
+                          <Iconify icon="solar:eye-bold" width={22} />
                         </IconButton>
-
-                        <Menu
-                          anchorEl={anchorEl}
-                          open={Boolean(anchorEl) && menuId === row.id}
-                          onClose={handleMenuClose}
-                        >
-                          <MenuItem
-                            onClick={() => {
-                              handleView(row.id);
-                              handleMenuClose();
-                            }}
-                          >
-                            View
-                          </MenuItem>
-
-                          <MenuItem
-                            onClick={() => {
-                              handleDelete(row.id);
-                              handleMenuClose();
-                            }}
-                          >
-                            Delete
-                          </MenuItem>
-                        </Menu>
                       </TableCell>
                     </TableRow>
                   ))}
-
-                {filtered.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5} align="center">
-                      No users found
-                    </TableCell>
-                  </TableRow>
-                )}
               </TableBody>
             </Table>
           </TableContainer>
         </Scrollbar>
 
-        {/* PAGINATION */}
         <TablePagination
           component="div"
           count={filtered.length}

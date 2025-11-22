@@ -1,201 +1,234 @@
-import { useState } from 'react';
+import { useEffect, useState } from "react";
 
-import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import Grid from '@mui/material/Grid';
-import Container from '@mui/material/Container';
-import Typography from '@mui/material/Typography';
-import CardContent from '@mui/material/CardContent';
+import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import Grid from "@mui/material/Grid";
+import Container from "@mui/material/Container";
+import Typography from "@mui/material/Typography";
+import CardContent from "@mui/material/CardContent";
 
-import { useRouter } from 'src/routes/hooks';
+import { useRouter } from "src/routes/hooks";
 
-const scenarios = [
-  {
-    id: 'product',
-    img: '/assets/images/category/product.png',
-    title: 'Product',
-    description: 'Evaluate product innovation, design, and market fit',
-    subScenarios: [
-      { id: 1, path: '/evaluation' },
-      { id: 2, path: '/evaluation' },
-    ],
-  },
-  {
-    id: 'technology',
-    img: '/assets/images/category/technology.png',
-    title: 'Technology',
-    description: 'Assess technological advancement and implementation',
-    subScenarios: [
-      { id: 1, path: '/evaluation' },
-      { id: 2, path: '/evaluation' },
-    ],
-  },
-  {
-    id: 'policy',
-    img: '/assets/images/category/policy.png',
-    title: 'Policy',
-    description: 'Analyze policy innovation and governance impact',
-    subScenarios: [
-      { id: 1, path: '/evaluation' },
-      { id: 2, path: '/evaluation' },
-    ],
-  },
-  {
-    id: 'practice',
-    img: '/assets/images/category/practice.png',
-    title: 'Practice',
-    description: 'Review process innovation and best practices',
-    subScenarios: [
-      { id: 1, path: '/evaluation' },
-      { id: 2, path: '/evaluation' },
-    ],
-  },
-];
+type Scenario = {
+  id: number;
+  title: string;
+  description: string;
+  image?: string;
+};
+
+type Evaluation = {
+  id: number;
+  scenario_id: number;
+};
+
+type Activity = {
+  scenario_id: number;
+  evaluation_id: number;
+};
+
+const API_SCENARIO = "http://localhost:5000/api/tbl_scenario";
+const API_EVAL = "http://localhost:5000/api/tbl_evaluation";
+const API_ACTIVITY = "http://localhost:5000/api/tbl_user_activity";
+
+function getCurrentUserId(): number | null {
+  const raw = localStorage.getItem("current_user_id");
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isNaN(n) ? null : n;
+}
 
 export function ScenarioOptionsView() {
   const router = useRouter();
-  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+  const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [evaluationMap, setEvaluationMap] = useState<Record<number, Evaluation[]>>({});
+  const [userActivities, setUserActivities] = useState<Activity[]>([]);
+  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
 
-  const handleScenarioClick = (scenario: any) => {
-    // open first subScenario path
-    const first = scenario.subScenarios[0];
-    router.push(first.path);
+  const userId = getCurrentUserId();
+
+  // -----------------------------------------------------
+  // 1. Load Scenarios
+  // -----------------------------------------------------
+  useEffect(() => {
+    fetch(API_SCENARIO)
+      .then((res) => res.json())
+      .then((result) => setScenarios(result))
+      .catch(console.error);
+  }, []);
+
+  // -----------------------------------------------------
+  // 2. Load All Evaluations (group by scenario)
+  // -----------------------------------------------------
+  useEffect(() => {
+    fetch(API_EVAL)
+      .then((res) => res.json())
+      .then((result: Evaluation[]) => {
+        const map: Record<number, Evaluation[]> = {};
+        result.forEach((ev) => {
+          if (!map[ev.scenario_id]) map[ev.scenario_id] = [];
+          map[ev.scenario_id].push(ev);
+        });
+
+        // प्रत्येक scenario साठी evaluations id ASC ने sort करू
+        Object.keys(map).forEach((key) => {
+          map[Number(key)] = map[Number(key)].sort((a, b) => a.id - b.id);
+        });
+
+        setEvaluationMap(map);
+      })
+      .catch(console.error);
+  }, []);
+
+  // -----------------------------------------------------
+  // 3. Load User Activity (which evaluations user completed)
+  // -----------------------------------------------------
+  useEffect(() => {
+    if (!userId) return;
+
+    fetch(`${API_ACTIVITY}?user_id=${userId}`)
+      .then((res) => res.json())
+      .then((result) => setUserActivities(result))
+      .catch(console.error);
+  }, [userId]);
+
+  // -----------------------------------------------------
+  // SCENARIO CLICK → नेहमी NEXT PENDING evaluation उघडा
+  // -----------------------------------------------------
+  const handleScenarioClick = (scenario: Scenario) => {
+    if (!userId) {
+      alert("User not found. Please sign up again.");
+      router.push("/sign-up");
+      return;
+    }
+
+    const evalList = evaluationMap[scenario.id] || [];
+    if (!evalList.length) {
+      alert("No evaluation found for this scenario.");
+      return;
+    }
+
+    // या user ने या scenario साठी कोणते evaluations complete केलेत?
+    const completedSet = new Set(
+      userActivities
+        .filter((a) => a.scenario_id === scenario.id)
+        .map((a) => a.evaluation_id)
+    );
+
+    // evalList मधून पहिला असा evaluation घ्या जो completed नाही
+    const nextEval = evalList.find((ev) => !completedSet.has(ev.id));
+
+    // जर सर्व complete असतील तर काही करू नका (card आधीच disabled होईल)
+    if (!nextEval) {
+      return;
+    }
+
+    // NEXT pending evaluation ला redirect
+    router.push(`/evaluation?evaluation_id=${nextEval.id}`);
+  };
+
+  // -----------------------------------------------------
+  // SCENARIO DISABLE LOGIC — फक्त सर्व evaluations complete असतील तेव्हाच
+  // -----------------------------------------------------
+  const isScenarioCompleted = (scenarioId: number) => {
+    const totalEvals = evaluationMap[scenarioId]?.length || 0;
+
+    const completed = new Set(
+      userActivities
+        .filter((a) => a.scenario_id === scenarioId)
+        .map((a) => a.evaluation_id)
+    ).size;
+
+    return completed >= totalEvals && totalEvals > 0;
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        background: 'transparent',
-        width: '100%',
-        maxWidth: '100% !important',
-        overflowX: 'hidden',
-        py: 1,
-        px: 0,
-      }}
-    >
-      <Container
-        maxWidth={false}
-        sx={{
-          width: '100%',
-          maxWidth: '100% !important',
-          px: 0,
-        }}
-      >
-        <Box
-          sx={{
-            textAlign: 'center',
-            mb: 6,
-            px: 2,
-            animation: 'fadeIn 0.8s ease-in',
-            '@keyframes fadeIn': {
-              from: { opacity: 0, transform: 'translateY(-20px)' },
-              to: { opacity: 1, transform: 'translateY(0)' },
-            },
-          }}
-        >
+    <Box sx={{ minHeight: "100vh", background: "transparent", py: 1 }}>
+      <Container maxWidth={false}>
+        <Box sx={{ textAlign: "center", mb: 6 }}>
           <Typography
             variant="h2"
-            sx={{
-              fontWeight: 700,
-              mb: 2,
-              color: '#092862',
-              textShadow: '0 2px 10px rgba(0,0,0,0.2)',
-              fontSize: { xs: '2rem', md: '3rem' },
-            }}
+            sx={{ fontWeight: 700, mb: 2, color: "#092862" }}
           >
             Select Innovation Domain
           </Typography>
-          <Typography
-            variant="h6"
-            sx={{
-              color: '#000',
-              fontSize: { xs: '1rem', md: '1.25rem' },
-              fontWeight: 400,
-            }}
-          >
+
+          <Typography variant="h6" sx={{ color: "#000" }}>
             Instructions for the users will go here
           </Typography>
         </Box>
 
-        <Grid container spacing={3} sx={{ px: { xs: 2, sm: 3, md: 4, lg: 3 } }}>
-          {scenarios.map((scenario, index) => (
-            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={scenario.id}>
-              <Card
-                onMouseEnter={() => setHoveredCard(scenario.id)}
-                onMouseLeave={() => setHoveredCard(null)}
-                onClick={() => handleScenarioClick(scenario)}
-                sx={{
-                  height: '100%',
-                  cursor: 'pointer',
-                  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                  background: 'rgba(255, 255, 255, 0.95)',
-                  backdropFilter: 'blur(10px)',
-                  borderRadius: 3,
-                  border: '2px solid transparent',
-                  animation: `slideUp 0.6s ease-out ${index * 0.1}s both`,
-                  '@keyframes slideUp': {
-                    from: { opacity: 0, transform: 'translateY(30px)' },
-                    to: { opacity: 1, transform: 'translateY(0)' },
-                  },
-                  '&:hover': {
-                    transform: 'translateY(-12px) scale(1.02)',
-                    boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-                    borderColor: 'primary.main',
-                    background: 'rgba(255, 255, 255, 1)',
-                  },
-                }}
-              >
-                <CardContent sx={{ textAlign: 'center', p: 4 }}>
-                  <Box
-                    sx={{
-                      mb: 3,
-                      transition: 'transform 0.3s ease',
-                      transform:
-                        hoveredCard === scenario.id
-                          ? 'scale(1.15)'
-                          : 'scale(1)',
-                    }}
-                  >
-                    <img
-                      src={scenario.img}
-                      alt={scenario.title}
-                      style={{
-                        width: '80px',
-                        height: '80px',
-                        objectFit: 'contain',
-                      }}
-                    />
-                  </Box>
+        <Grid
+          container
+          spacing={3}
+          sx={{ px: { xs: 2, sm: 3, md: 4, lg: 3 } }}
+        >
+          {scenarios.map((scenario) => {
+            const disabled = isScenarioCompleted(scenario.id);
 
-                  <Typography
-                    variant="h5"
-                    sx={{
-                      fontWeight: 700,
-                      mb: 2,
-                      color: 'primary.main',
-                      transition: 'color 0.3s ease',
-                    }}
-                  >
-                    {scenario.title}
-                  </Typography>
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      color: 'text.secondary',
-                      mb: 3,
-                      lineHeight: 1.6,
-                      minHeight: '48px',
-                    }}
-                  >
-                    {scenario.description}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
+            return (
+              <Grid key={scenario.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
+                <Card
+                  onMouseEnter={() => setHoveredCard(scenario.id)}
+                  onMouseLeave={() => setHoveredCard(null)}
+                  onClick={() => !disabled && handleScenarioClick(scenario)}
+                  sx={{
+                    cursor: disabled ? "not-allowed" : "pointer",
+                    opacity: disabled ? 0.4 : 1,
+                    pointerEvents: disabled ? "none" : "auto",
+                    transition: "all 0.3s ease",
+                    "&:hover": !disabled
+                      ? {
+                          transform: "translateY(-10px)",
+                          boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+                        }
+                      : {},
+                  }}
+                >
+                  <CardContent sx={{ textAlign: "center", p: 4 }}>
+                    <Box sx={{ mb: 3 }}>
+                      <img
+                        src={
+                          scenario.image
+                            ? `https://innovationtool.dcpl.co.in/uploads/${scenario.image}`
+                            : "/assets/images/default.png"
+                        }
+                        alt={scenario.title}
+                        style={{
+                          width: 80,
+                          height: 80,
+                          objectFit: "contain",
+                          transition: "transform 0.3s ease",
+                          transform:
+                            hoveredCard === scenario.id && !disabled
+                              ? "scale(1.12)"
+                              : "scale(1)",
+                        }}
+                      />
+                    </Box>
+
+                    <Typography variant="h5" sx={{ fontWeight: 700, mb: 2 }}>
+                      {scenario.title}
+                    </Typography>
+
+                    <Typography
+                      variant="body1"
+                      sx={{
+                        color: "text.secondary",
+                        lineHeight: 1.6,
+                        minHeight: "48px",
+                      }}
+                    >
+                      {scenario.description}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            );
+          })}
         </Grid>
       </Container>
     </Box>
   );
 }
+
+export default ScenarioOptionsView;

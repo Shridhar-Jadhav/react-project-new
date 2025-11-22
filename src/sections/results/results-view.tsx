@@ -11,23 +11,30 @@ import { useRouter } from 'src/routes/hooks';
 export function ResultsView() {
   const router = useRouter();
   const [searchParams] = useSearchParams();
-  const score = parseFloat(searchParams.get('score') || '0');
-  const scenarioType = searchParams.get('type') || 'product';
 
-  // FINAL – EXACT SAME LOGIC AS EvaluationView.tsx
+  const score = parseFloat(searchParams.get('score') || '0');
+  const scenarioType = searchParams.get('type') || 'Evaluation';
+  const evaluationId = searchParams.get('evaluation_id') || '';
+
+  // ------------------------------------------------------
+  // Badge Logic (SAME AS EVALUATION)
+  // ------------------------------------------------------
   const getScoreBadge = (scoreValue: number) => {
     if (scoreValue >= 8)
-      return { label: 'VERY HIGH INNOVATION POTENTIAL', color: '#4caf50' }; // green
+      return { label: 'VERY HIGH INNOVATION POTENTIAL', color: '#4caf50' };
 
     if (scoreValue >= 6)
-      return { label: 'HIGH INNOVATION POTENTIAL', color: '#2196f3' }; // blue
+      return { label: 'HIGH INNOVATION POTENTIAL', color: '#2196f3' };
 
     if (scoreValue >= 3)
-      return { label: 'MEDIUM INNOVATION POTENTIAL', color: '#ff9800' }; // orange
+      return { label: 'MEDIUM INNOVATION POTENTIAL', color: '#ff9800' };
 
-    return { label: 'LOW INNOVATION POTENTIAL', color: '#f44336' }; // red
+    return { label: 'LOW INNOVATION POTENTIAL', color: '#f44336' };
   };
 
+  // ------------------------------------------------------
+  // Summary Logic (SAME AS EVALUATION)
+  // ------------------------------------------------------
   const getSummary = (scoreValue: number) => {
     if (scoreValue >= 8)
       return 'This innovation demonstrates very high potential and performs strongly across scalability, feasibility, novelty, and overall impact dimensions.';
@@ -43,19 +50,23 @@ export function ResultsView() {
 
   const badge = getScoreBadge(score);
 
+  // ------------------------------------------------------
+
   return (
     <Container maxWidth="md">
       <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', py: 5 }}>
         <Card sx={{ width: '100%', p: 5 }}>
           <Box sx={{ textAlign: 'center' }}>
+
             <Typography variant="h3" sx={{ fontWeight: 600, mb: 2 }}>
               Evaluation Complete!
             </Typography>
+
             <Typography variant="body1" sx={{ color: 'text.secondary', mb: 5 }}>
               Here are your results
             </Typography>
 
-            {/* Score Circle */}
+            {/* SCORE CIRCLE */}
             <Box
               sx={{
                 width: 200,
@@ -78,7 +89,7 @@ export function ResultsView() {
               </Typography>
             </Box>
 
-            {/* Badge */}
+            {/* BADGE */}
             <Box
               sx={{
                 display: 'inline-block',
@@ -94,7 +105,7 @@ export function ResultsView() {
               {badge.label}
             </Box>
 
-            {/* Summary */}
+            {/* SUMMARY */}
             <Box sx={{ textAlign: 'left', mb: 4 }}>
               <Typography variant="h5" sx={{ fontWeight: 600, mb: 2 }}>
                 Summary
@@ -104,20 +115,23 @@ export function ResultsView() {
               </Typography>
             </Box>
 
-            {/* Button */}
+            {/* BUTTONS */}
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
               <Button
                 variant="outlined"
                 size="large"
-                onClick={() => router.push('/')}
+                onClick={() => router.push('/sign-up')}
                 sx={{ px: 4 }}
               >
                 Start New Scenario
               </Button>
             </Box>
+
           </Box>
         </Card>
       </Box>
     </Container>
   );
 }
+
+export default ResultsView;

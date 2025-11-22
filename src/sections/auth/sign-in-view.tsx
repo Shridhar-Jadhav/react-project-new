@@ -10,15 +10,12 @@ import Typography from '@mui/material/Typography';
 import InputAdornment from '@mui/material/InputAdornment';
 
 import { useRouter } from 'src/routes/hooks';
-
 import { Iconify } from 'src/components/iconify';
 
-// ----------------------------------------------------------------------
-
-// Demo credentials for testing
+// Demo credentials
 const DEMO_CREDENTIALS = {
   email: 'hello@gmail.com',
-  password: '@demo1234'
+  password: '@demo1234',
 };
 
 export function SignInView() {
@@ -57,6 +54,7 @@ export function SignInView() {
     setLoginError('');
   };
 
+  // UPDATED LOGIN FUNCTION
   const handleSignIn = useCallback(
     (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
@@ -70,12 +68,22 @@ export function SignInView() {
       });
 
       if (!emailError && !passwordError) {
-        if (email === DEMO_CREDENTIALS.email && password === DEMO_CREDENTIALS.password) {
+        if (
+          email === DEMO_CREDENTIALS.email &&
+          password === DEMO_CREDENTIALS.password
+        ) {
           setLoginError('');
-          router.push('/');
+
+          // 👉 Save admin session
+          localStorage.setItem('auth', 'admin');
+
+          // 👉 Redirect to dashboard
+          router.push('/dashboard');
         } else {
           if (email !== DEMO_CREDENTIALS.email) {
-            setLoginError('Invalid email address. Please check your credentials.');
+            setLoginError(
+              'Invalid email address. Please check your credentials.'
+            );
           } else if (password !== DEMO_CREDENTIALS.password) {
             setLoginError('Incorrect password. Please try again.');
           }
@@ -115,9 +123,9 @@ export function SignInView() {
         }}
       />
 
-      <Link variant="body2" color="inherit" sx={{ mb: 1.5 }}>
+      {/* <Link variant="body2" color="inherit" sx={{ mb: 1.5 }}>
         Forgot password?
-      </Link>
+      </Link> */}
 
       <TextField
         fullWidth
@@ -134,7 +142,9 @@ export function SignInView() {
             endAdornment: (
               <InputAdornment position="end">
                 <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
-                  <Iconify icon={showPassword ? 'solar:eye-bold' : 'solar:eye-closed-bold'} />
+                  <Iconify
+                    icon={showPassword ? 'solar:eye-bold' : 'solar:eye-closed-bold'}
+                  />
                 </IconButton>
               </InputAdornment>
             ),
@@ -144,7 +154,7 @@ export function SignInView() {
       />
 
       <Button fullWidth size="large" type="submit" color="inherit" variant="contained">
-        Sign in
+        Login In
       </Button>
     </Box>
   );
@@ -160,7 +170,7 @@ export function SignInView() {
           mb: 5,
         }}
       >
-        <Typography variant="h5">Sign in</Typography>
+        <Typography variant="h5">Admin Login</Typography>
       </Box>
       {renderForm}
     </>
